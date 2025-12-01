@@ -26,10 +26,12 @@ Local Network Access (LNA), also known as Private Network Access (PNA), is a bro
 - Status: Prototyping/development
 - Tracking: [Bugzilla #1481298](https://bugzilla.mozilla.org/show_bug.cgi?id=1481298)
 - Timeline: Not announced
+- **Current Behavior:** Works without LNA permission prompts (no enforcement yet)
 
 **Safari:**
 - Status: Not supported for web
 - macOS/iOS: OS-level permissions for native apps only
+- **Current Behavior:** Blocks requests to localhost from public origins
 
 ## Core Concepts
 
@@ -445,6 +447,191 @@ fetch(url, { targetAddressSpace: 'local' })
 - [Firefox Bug #1481298: Private Network Access](https://bugzilla.mozilla.org/show_bug.cgi?id=1481298)
 - [Microsoft Edge Browser Policies](https://learn.microsoft.com/en-us/deployedge/microsoft-edge-browser-policies/)
 
+## Empirical Testing Results (December 2025)
+
+Testing was conducted using the LNA Permissions Explorer app deployed on GitHub Pages (`https://anagri.github.io/exp-lna-permissions/`) against localhost servers on ports 8080 and 1135.
+
+### Chrome 142.0.0.0 (macOS)
+
+**Permission Query API:**
+- ✅ `navigator.permissions.query({ name: 'local-network-access' })` - **Supported**
+- Permission state: **GRANTED** (after user approval)
+- Secure context detection: **Yes** (HTTPS)
+- Browser detection: **Chrome 142+ supports LNA**
+
+**Fetch Behavior:**
+
+| targetAddressSpace | Behavior | Result |
+|-------------------|----------|--------|
+| `"local"` | CORS error: "target IP address space of `unknown` yet resource is in address space `loopback`" | ❌ **BLOCKED** |
+| `"private"` | CORS error: "target IP address space of `unknown` yet resource is in address space `loopback`" | ❌ **BLOCKED** |
+| `none` (omitted) | Request succeeds after permission granted | ✅ **WORKS** |
+
+**Findings:**
+- Chrome 142 has a **bug** where explicit `targetAddressSpace` parameter triggers "unknown" error
+- Omitting `targetAddressSpace` works correctly with granted permission
+- Permission cached from experimental/preview phase may cause conflicts
+- **Workaround:** Reset site permissions and use fetch without `targetAddressSpace`
+
+**Permission Reset Required:**
+Users who enabled LNA during Chrome's experimental phase (flags) need to reset permissions:
+1. Visit `chrome://settings/content/all`
+2. Search for site and remove "Local Network Access" permission
+3. Re-grant when prompted on fresh request
+
+### Microsoft Edge (Chromium-based)
+
+**Behavior:**
+- ✅ Works **without permission prompt**
+- No LNA enforcement yet (as of December 2025)
+- Edge 143+ scheduled for LNA rollout (December 1-7, 2025)
+- All `targetAddressSpace` options work
+
+### Firefox (Latest)
+
+**Behavior:**
+- ✅ Works **without permission prompt**
+- No LNA enforcement (prototyping phase)
+- All `targetAddressSpace` options work
+- No `navigator.permissions.query()` support for LNA
+
+### Safari (macOS)
+
+**Behavior:**
+- ❌ **Blocks** all requests to localhost from public origins
+- No LNA API support
+- No permission prompt mechanism
+- CORS errors regardless of server headers
+
+### Cross-Browser Compatibility Table
+
+| Browser | LNA API | Permission Prompt | targetAddressSpace: local | targetAddressSpace: private | targetAddressSpace: none |
+|---------|---------|-------------------|---------------------------|----------------------------|-------------------------|
+| Chrome 142+ | ✅ | ✅ | ❌ (bug) | ❌ (bug) | ✅ |
+| Edge 142 | ✅ | ❌ (not yet) | ✅ | ✅ | ✅ |
+| Firefox | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Safari | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Legend:**
+- ✅ Supported/Works
+- ❌ Not supported/Blocked
+- ❌ (bug) - Supported but has known issues
+- ❌ (not yet) - Scheduled but not active
+
+## Known Issues & Workarounds
+
+### Chrome 142: targetAddressSpace "unknown" Error
+
+**Issue:**
+```
+Access to fetch at 'http://localhost:8080/' from origin 'https://anagri.github.io'
+has been blocked by CORS policy: Request had a target IP address space of `unknown`
+yet the resource is in address space `loopback`.
+```
+
+**Root Cause:**
+- Chrome's address space detection fails when `targetAddressSpace` is explicitly set
+- May be related to cached permissions from experimental phase
+- Affects both `"local"` and `"private"` values
+
+**Workaround:**
+```javascript
+// Option 1: Omit targetAddressSpace (works in Chrome 142)
+fetch('http://localhost:8080/')
+
+// Option 2: Feature detection and fallback
+async function safeFetch(url, addressSpace = 'local') {
+  try {
+    // Try with targetAddressSpace first
+    return await fetch(url, { targetAddressSpace: addressSpace })
+  } catch (error) {
+    // Fallback: retry without parameter
+    console.log('Retrying without targetAddressSpace')
+    return await fetch(url)
+  }
+}
+```
+
+### Safari: No LNA Support
+
+**Issue:**
+Safari blocks all localhost requests from public origins without any permission mechanism.
+
+**Workaround:**
+- Use HTTPS proxy for local development
+- Deploy to localhost during testing
+- Inform users Safari is not supported
+
+## Recommendations for Developers
+
+### Production-Ready Pattern (December 2025)
+
+```javascript
+async function fetchLocalNetwork(url) {
+  // Check if browser supports Permissions API
+  if (!navigator.permissions) {
+    // Firefox/Safari: Just try the request
+    return fetch(url)
+  }
+
+  try {
+    // Check permission state (Chrome/Edge)
+    const permission = await navigator.permissions.query({
+      name: 'local-network-access'
+    })
+
+    if (permission.state === 'denied') {
+      throw new Error('Local network access denied')
+    }
+
+    // Chrome 142 bug: omit targetAddressSpace for now
+    // Will be fixed in future Chrome versions
+    return fetch(url)
+
+  } catch (error) {
+    // LNA not supported: fallback to regular fetch
+    return fetch(url)
+  }
+}
+```
+
+### Testing Strategy
+
+1. **Chrome 142+:** Test with and without `targetAddressSpace`, verify permission prompts
+2. **Edge:** Test before and after Edge 143 rollout (Dec 2025)
+3. **Firefox:** Test without expecting permission prompts
+4. **Safari:** Document as unsupported, test blocking behavior
+5. **Reset Permissions:** Clear Chrome site data to test fresh permission flow
+
+### Future-Proofing
+
+When Chrome fixes the `targetAddressSpace` bug:
+
+```javascript
+async function fetchLocalNetwork(url, addressSpace = 'local') {
+  if (!navigator.permissions) {
+    return fetch(url)
+  }
+
+  try {
+    const permission = await navigator.permissions.query({
+      name: 'local-network-access'
+    })
+
+    if (permission.state === 'denied') {
+      throw new Error('Local network access denied')
+    }
+
+    // Future: This should work when Chrome bug is fixed
+    return fetch(url, { targetAddressSpace: addressSpace })
+
+  } catch (error) {
+    // Fallback for unsupported browsers
+    return fetch(url)
+  }
+}
+```
+
 ## Summary
 
 **Key Takeaways:**
@@ -454,5 +641,7 @@ fetch(url, { targetAddressSpace: 'local' })
 - Server needs CORS + LNA headers
 - Permission states: granted, prompt, denied
 - Use `navigator.permissions.query()` to check status
-- Use `targetAddressSpace` fetch option for requests
+- **Chrome 142 bug:** Omit `targetAddressSpace` parameter for now
+- Firefox/Edge work without permission prompts (as of Dec 2025)
+- Safari blocks all localhost requests without LNA support
 - Graceful degradation for unsupported browsers essential
