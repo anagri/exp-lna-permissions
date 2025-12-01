@@ -45,7 +45,20 @@ export function RequestForm({ onSubmit, onClear, isLoading, hasResponse }: Reque
 
         <div>
           <label className="block text-sm font-medium mb-2">Target Address Space</label>
-          <div className="flex gap-4">
+          <div className="grid grid-cols-3 gap-4">
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="addressSpace"
+                value="loopback"
+                checked={addressSpace === 'loopback'}
+                onChange={() => setAddressSpace('loopback')}
+                disabled={isLoading}
+                data-testid="address-space-loopback"
+                className="mr-2"
+              />
+              Loopback
+            </label>
             <label className="flex items-center">
               <input
                 type="radio"
@@ -76,6 +89,32 @@ export function RequestForm({ onSubmit, onClear, isLoading, hasResponse }: Reque
               <input
                 type="radio"
                 name="addressSpace"
+                value="public"
+                checked={addressSpace === 'public'}
+                onChange={() => setAddressSpace('public')}
+                disabled={isLoading}
+                data-testid="address-space-public"
+                className="mr-2"
+              />
+              Public
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="addressSpace"
+                value="unknown"
+                checked={addressSpace === 'unknown'}
+                onChange={() => setAddressSpace('unknown')}
+                disabled={isLoading}
+                data-testid="address-space-unknown"
+                className="mr-2"
+              />
+              Unknown
+            </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="addressSpace"
                 value="none"
                 checked={addressSpace === 'none'}
                 onChange={() => setAddressSpace('none')}
@@ -87,8 +126,9 @@ export function RequestForm({ onSubmit, onClear, isLoading, hasResponse }: Reque
             </label>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Local: localhost/127.0.0.1 • Private: 10.x, 172.16.x, 192.168.x • None: Skip
-            targetAddressSpace
+            Loopback: 127.0.0.1/localhost • Local: link-local addresses • Private: RFC1918 (10.x,
+            172.16.x, 192.168.x) • Public: internet • Unknown: let Chrome decide • None: omit
+            parameter
           </p>
         </div>
 

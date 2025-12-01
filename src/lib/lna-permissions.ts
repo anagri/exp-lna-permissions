@@ -48,7 +48,7 @@ export async function queryLNAPermission(): Promise<LNAPermissionStatus> {
 
 export async function makeLocalNetworkRequest(
   url: string,
-  targetAddressSpace: 'local' | 'private' | 'none' = 'local'
+  targetAddressSpace: 'local' | 'private' | 'public' | 'loopback' | 'unknown' | 'none' = 'local'
 ): Promise<{ data: unknown; headers: Record<string, string> }> {
   const fetchOptions: RequestInit = {
     method: 'GET',
