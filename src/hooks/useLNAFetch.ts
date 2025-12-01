@@ -1,12 +1,12 @@
 import { useState, useCallback } from 'react'
-import type { FetchResponse } from '@/types/lna'
+import type { FetchResponse, TargetAddressSpace } from '@/types/lna'
 import { makeLocalNetworkRequest } from '@/lib/lna-permissions'
 
 export function useLNAFetch() {
   const [response, setResponse] = useState<FetchResponse>({ status: 'idle' })
 
   const sendRequest = useCallback(
-    async (url: string, targetAddressSpace: 'local' | 'private' = 'local') => {
+    async (url: string, targetAddressSpace: TargetAddressSpace = 'local') => {
       setResponse({ status: 'loading' })
 
       try {

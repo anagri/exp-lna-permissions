@@ -1,11 +1,12 @@
 import { useState, type FormEvent } from 'react'
+import type { TargetAddressSpace } from '@/types/lna'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Send, Trash2 } from 'lucide-react'
 
 interface RequestFormProps {
-  onSubmit: (url: string, targetAddressSpace: 'local' | 'private') => void
+  onSubmit: (url: string, targetAddressSpace: TargetAddressSpace) => void
   onClear: () => void
   isLoading: boolean
   hasResponse: boolean
@@ -13,7 +14,7 @@ interface RequestFormProps {
 
 export function RequestForm({ onSubmit, onClear, isLoading, hasResponse }: RequestFormProps) {
   const [url, setUrl] = useState('')
-  const [addressSpace, setAddressSpace] = useState<'local' | 'private'>('local')
+  const [addressSpace, setAddressSpace] = useState<TargetAddressSpace>('local')
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -71,9 +72,23 @@ export function RequestForm({ onSubmit, onClear, isLoading, hasResponse }: Reque
               />
               Private
             </label>
+            <label className="flex items-center">
+              <input
+                type="radio"
+                name="addressSpace"
+                value="none"
+                checked={addressSpace === 'none'}
+                onChange={() => setAddressSpace('none')}
+                disabled={isLoading}
+                data-testid="address-space-none"
+                className="mr-2"
+              />
+              None
+            </label>
           </div>
           <p className="text-xs text-gray-500 mt-1">
-            Local: localhost/127.0.0.1 • Private: 10.x, 172.16.x, 192.168.x
+            Local: localhost/127.0.0.1 • Private: 10.x, 172.16.x, 192.168.x • None: Skip
+            targetAddressSpace
           </p>
         </div>
 

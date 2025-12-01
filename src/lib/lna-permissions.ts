@@ -48,13 +48,18 @@ export async function queryLNAPermission(): Promise<LNAPermissionStatus> {
 
 export async function makeLocalNetworkRequest(
   url: string,
-  targetAddressSpace: 'local' | 'private' = 'local'
+  targetAddressSpace: 'local' | 'private' | 'none' = 'local'
 ): Promise<{ data: unknown; headers: Record<string, string> }> {
-  const response = await fetch(url, {
+  const fetchOptions: RequestInit = {
     method: 'GET',
+  }
+
+  if (targetAddressSpace !== 'none') {
     // @ts-expect-error - targetAddressSpace is experimental
-    targetAddressSpace,
-  })
+    fetchOptions.targetAddressSpace = targetAddressSpace
+  }
+
+  const response = await fetch(url, fetchOptions)
 
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`)

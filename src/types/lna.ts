@@ -21,6 +21,8 @@ export type LNAPermissionStatus = {
 
 export type RequestStatus = 'idle' | 'loading' | 'success' | 'error'
 
+export type TargetAddressSpace = 'local' | 'private' | 'none'
+
 export type FetchResponse = {
   status: RequestStatus
   data?: unknown
